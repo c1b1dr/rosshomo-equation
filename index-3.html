@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rossmo-Formel Heatmap Visualisierung</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Rossmo-Formel: Geographic Profiling</h1>
+            <p>Interaktive Heatmap zur Visualisierung der Täteraufenthaltswahrscheinlichkeit</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <h2>Parameter & Steuerung</h2>
+                
+                <!-- Rossmo Parameters -->
+                <div class="parameter-group">
+                    <h3>Rossmo-Parameter</h3>
+                    <div class="parameter">
+                        <label for="param-f">f (Distance Decay): <span id="f-value">2</span></label>
+                        <input type="range" id="param-f" min="0.5" max="5" step="0.1" value="2">
+                        <small>Steuert wie schnell die Wahrscheinlichkeit mit der Entfernung abnimmt</small>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="param-g">g (Buffer Zone Steigung): <span id="g-value">3</span></label>
+                        <input type="range" id="param-g" min="1" max="6" step="0.1" value="3">
+                        <small>Steuert die Steigung in der Pufferzone</small>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="param-b">B (Pufferzone Radius): <span id="b-value">3</span></label>
+                        <input type="range" id="param-b" min="1" max="10" step="0.5" value="3">
+                        <small>Radius der Pufferzone um jeden Tatort</small>
+                    </div>
+                </div>
+
+                <!-- Map Controls -->
+                <div class="parameter-group">
+                    <h3>Karte & Gitter</h3>
+                    <div class="parameter">
+                        <label for="grid-size">Gittergröße: <span id="grid-value">20</span>x<span id="grid-value-y">20</span></label>
+                        <input type="range" id="grid-size" min="10" max="50" step="1" value="20">
+                    </div>
+                    
+                    <div class="parameter">
+                        <label for="map-upload">Eigene Karte hochladen:</label>
+                        <input type="file" id="map-upload" accept="image/*">
+                        <button id="reset-map">Standard-Karte</button>
+                    </div>
+                </div>
+
+                <!-- Crime Location Controls -->
+                <div class="parameter-group">
+                    <h3>Tatorte</h3>
+                    <div class="crime-controls">
+                        <button id="add-crime-mode" class="mode-btn">Tatort hinzufügen</button>
+                        <button id="remove-crime-mode" class="mode-btn">Tatort entfernen</button>
+                        <button id="clear-crimes">Alle Tatorte löschen</button>
+                    </div>
+                    <div id="crime-list">
+                        <h4>Aktuelle Tatorte:</h4>
+                        <ul id="crimes"></ul>
+                    </div>
+                </div>
+
+                <!-- Perpetrator Home Location -->
+                <div class="parameter-group">
+                    <h3>Täter-Wohnort (für Täterrolle)</h3>
+                    <div class="home-controls">
+                        <button id="set-home-mode" class="mode-btn">Wohnort festlegen</button>
+                        <button id="clear-home">Wohnort entfernen</button>
+                        <button id="toggle-home-visibility" class="visibility-btn">Wohnort verstecken</button>
+                    </div>
+                    <div id="home-info">
+                        <h4>Aktueller Wohnort:</h4>
+                        <p id="home-location">Nicht festgelegt</p>
+                        <p id="home-accuracy" class="accuracy-info"></p>
+                    </div>
+                </div>
+
+                <!-- Visualization Controls -->
+                <div class="parameter-group">
+                    <h3>Visualisierung</h3>
+                    <div class="parameter">
+                        <label for="heatmap-intensity">Heatmap Intensität: <span id="intensity-value">0.8</span></label>
+                        <input type="range" id="heatmap-intensity" min="0.1" max="1" step="0.1" value="0.8">
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>
+                            <input type="checkbox" id="show-grid" checked>
+                            Gitter anzeigen
+                        </label>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>
+                            <input type="checkbox" id="show-crimes" checked>
+                            Tatorte anzeigen
+                        </label>
+                    </div>
+                    
+                    <div class="parameter">
+                        <label>
+                            <input type="checkbox" id="show-legend" checked>
+                            Farbcodex anzeigen
+                        </label>
+                    </div>
+                    
+                    <button id="calculate-heatmap" class="calculate-btn">Heatmap berechnen</button>
+                </div>
+
+                <!-- Color Legend -->
+                <div class="parameter-group" id="color-legend">
+                    <h3>Farbcodex - Wahrscheinlichkeitsbereiche</h3>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #000080;"></div>
+                            <span>0-10%: Sehr niedrig</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #0066CC;"></div>
+                            <span>10-20%: Niedrig</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #00CCFF;"></div>
+                            <span>20-30%: Gering</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #00FF99;"></div>
+                            <span>30-40%: Mäßig</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #66FF33;"></div>
+                            <span>40-50%: Mittel</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #CCFF00;"></div>
+                            <span>50-60%: Erhöht</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #FFCC00;"></div>
+                            <span>60-70%: Hoch</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #FF6600;"></div>
+                            <span>70-80%: Sehr hoch</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #FF3300;"></div>
+                            <span>80-90%: Extrem hoch</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #CC0000;"></div>
+                            <span>90-100%: Maximum</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="parameter-group">
+                    <h3>Vorgefertigte Szenarien</h3>
+                    <button class="preset-btn" data-preset="default">Standard-Szenario</button>
+                    <button class="preset-btn" data-preset="urban">Städtisches Gebiet</button>
+                    <button class="preset-btn" data-preset="suburban">Vorstadtgebiet</button>
+                </div>
+            </div>
+
+            <!-- Visualization Area -->
+            <div class="visualization-area">
+                <div class="canvas-container">
+                    <canvas id="map-canvas"></canvas>
+                    <canvas id="heatmap-canvas"></canvas>
+                    <canvas id="overlay-canvas"></canvas>
+                </div>
+                
+                <div class="info-panel">
+                    <h3>Informationen</h3>
+                    <div id="mouse-info">
+                        <p>Koordinaten: <span id="mouse-coords">-</span></p>
+                        <p>Wahrscheinlichkeit: <span id="probability-value">-</span></p>
+                    </div>
+                    
+                    <div id="calculation-info">
+                        <p>Anzahl Tatorte: <span id="crime-count">0</span></p>
+                        <p>Höchste Wahrscheinlichkeit: <span id="max-probability">-</span></p>
+                        <p>Wahrscheinlichste Position: <span id="max-position">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h2>Anleitung</h2>
+            <ol>
+                <li><strong>Tatorte hinzufügen:</strong> Klicken Sie auf "Tatort hinzufügen" und dann auf die Karte</li>
+                <li><strong>Parameter anpassen:</strong> Verwenden Sie die Schieberegler um f, g und B zu verändern</li>
+                <li><strong>Heatmap berechnen:</strong> Klicken Sie auf "Heatmap berechnen" um die Wahrscheinlichkeitsverteilung zu visualisieren</li>
+                <li><strong>Eigene Karte:</strong> Laden Sie ein Bild hoch um Ihre eigene Karte zu verwenden</li>
+                <li><strong>Analyse:</strong> Bewegen Sie die Maus über die Heatmap um Wahrscheinlichkeitswerte zu sehen</li>
+            </ol>
+        </div>
+
+        <!-- Formula Display -->
+        <div class="formula-section">
+            <h2>Die Rossmo-Formel</h2>
+            <div class="formula">
+                <p><strong>P(x,y) = k × Σ[V/d(x,y)ᶠ + (1-V) × Bᵍ⁻ᶠ/(2B-d(x,y))ᵍ]</strong></p>
+                <ul>
+                    <li><strong>P(x,y):</strong> Wahrscheinlichkeit dass der Täter bei (x,y) wohnt</li>
+                    <li><strong>d(x,y):</strong> Manhattan-Distanz zum Tatort</li>
+                    <li><strong>f:</strong> Distance Decay Parameter</li>
+                    <li><strong>g:</strong> Buffer Zone Steigungsparameter</li>
+                    <li><strong>B:</strong> Radius der Pufferzone</li>
+                    <li><strong>V:</strong> Indikatorfunktion (1 wenn d>B, sonst 0)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
